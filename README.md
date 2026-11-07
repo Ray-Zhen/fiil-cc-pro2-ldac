@@ -1,70 +1,91 @@
 # FIIL CC Pro2 离线激活 LDAC
 
-用 Windows 蓝牙激活并开启 FIIL CC Pro2 的 LDAC。脚本通过耳机固件自带的指令生成并保存激活数据，全程可离线运行，无需登录、访问 FIIL 服务器或刷写固件。
+FIIL+ 连不上官方激活服务时，可以用这个工具，通过电脑蓝牙给耳机激活 LDAC。整个过程可以离线完成，耳机固件也不用更换。
 
-## 适用范围
+**目前只在国行 FIIL CC Pro2（F039）、固件 1.0.1.0 上实测成功。** 如果你的固件是 1.0.5.0 或其他版本，目前还不能确认能用，需要先分析验证。
 
-实机验证组合为 **国行 FIIL CC Pro2（F039，旧版 Airoha GAIA 协议），耳机固件 1.0.1.0**。验证时用于查看固件和状态的 FIIL+ 版本为 3.5.2。脚本需要带蓝牙的 Windows 电脑和 Python 3.8 或更新版本，直接使用 Python 标准库。
+## 开始前准备
 
-脚本无法自动识别耳机固件版本。请先在 FIIL+ 确认型号和固件。其他固件、硬件批次和海外版尚未验证。`status` 有应答只表示状态查询可用，请仅在上述实测组合执行写入命令。
+- 一台带蓝牙的 Windows 电脑。
+- Python 3.8 或以上版本。在 PowerShell 输入 `python --version` 能看到版本号即可。如果你的电脑用 `py -3` 启动 Python，下面所有命令里的 `python` 都换成 `py -3`。
+- 在 FIIL+ 里查看耳机固件版本。本次实测使用的 App 是 FIIL+ 3.5.2。
 
-## 激活并开启
+下载本仓库并解压，在包含 `ccpro2_gaia.py` 的文件夹里打开 PowerShell。
 
-1. 将两只耳机都取出，暂时关闭手机蓝牙，然后让 Windows 配对并连接耳机。
-2. 在 PowerShell 查询蓝牙地址。在匹配的设备名上一行，复制 `BTHENUM\Dev_` 后的 12 位十六进制字符。
+## 激活步骤
 
-   ```powershell
-   pnputil.exe /enum-devices /connected /class Bluetooth |
-     Select-String 'FIIL CC Pro2\s*$' -Context 1,0
-   ```
+**1. 让耳机连上电脑。**
 
-3. 在本 README 所在目录打开 PowerShell，将下面的 `AABBCCDDEEFF` 换成你的耳机地址，先查询状态，再激活并开启。
+两只耳机都从盒里取出，暂时关闭手机蓝牙，再到 Windows 蓝牙设置里配对并连接 FIIL CC Pro2。
 
-   ```powershell
-   python .\ccpro2_gaia.py status AABBCCDDEEFF
-   python .\ccpro2_gaia.py enable AABBCCDDEEFF --timeout 15
-   ```
+**2. 找到耳机的蓝牙地址。**
 
-   如果你的 Windows 用 `py` 启动 Python，将命令中的 `python` 换成 `py -3`。
+在 PowerShell 执行下面的命令。
 
-脚本逐耳读回激活结果，再开启并回读 LDAC 开关。出现 `Both earbuds report LDAC activation and the switch is on.` 表示耳机端验证通过。重复运行时，脚本跳过已激活的耳机和已开启的开关。切换编码可能使耳机重启，`enable` 会尝试重新连接以确认开关状态。
-
-## 确认手机正在用 LDAC
-
-断开电脑蓝牙，连回手机并播放音乐。FIIL+ 应显示蓝色的「耳机蓝牙音频解码」开关和「高清」状态。在小米 14 上，播放期间打开 **设置 → 更多设置 → 开发者选项 → 蓝牙音频编解码器**，确认当前选中 **LDAC**。如果蓝牙设备详情有「高清音频」或「LDAC」开关，开启后再重新连接并播放。
-
-开启 LDAC 后，耳机会切换为单点连接，游戏低延时模式也会关闭。
-
-## 命令与排查
-
-| 命令 | 用途 |
-| --- | --- |
-| `python .\ccpro2_gaia.py status AABBCCDDEEFF` | 只读查询两耳激活状态及 LDAC 开关 |
-| `python .\ccpro2_gaia.py enable AABBCCDDEEFF` | 激活两耳并开启 LDAC |
-| `python .\ccpro2_gaia.py activate-local AABBCCDDEEFF` | 仅执行激活并逐耳确认 |
-| `python .\ccpro2_gaia.py on AABBCCDDEEFF` | 给已激活的耳机打开 LDAC 开关 |
-| `python .\ccpro2_gaia.py off AABBCCDDEEFF` | 关闭 LDAC 开关，保留激活状态 |
-
-- `activation[selector=…]` 的 `0` 表示未激活，`1` 表示已激活，`2` 表示暂未取得对侧状态。只有两侧都报告 `0` 或 `1`，`enable` 才会继续写入。遇到 `2` 时，把两耳都取出，等双耳互连后再查。
-- 如果切换时耳机断开，等耳机重启并连回电脑，再运行 `status`。两侧为 `1` 且 `LDAC switch: 1` 表示已激活并开启。若开关仍为 `0`，可重跑 `enable`。
-- 遇到 `RFCOMM connect failed`，确认耳机已连接 Windows、手机蓝牙已暂时关闭，并核对设备地址。可加 `--verbose` 查看 GAIA 收发数据。
-
-## 工作原理
-
-脚本通过蓝牙 Classic RFCOMM 与耳机交换 GAIA 指令。在实测固件中，`0x07B0` 接受两个字节的载荷 `<耳侧选择器> 88`。固件为该侧计算并保存激活数据。脚本用 `0x07AF` 读取实际激活状态，再用 `0x07B2` 开启 LDAC，最后用 `0x07B3` 回读开关。
-
-从 App 定位指令、导出耳机固件和验证本地激活分支的过程见 [技术说明](skills/earbuds-firmware-reverse/references/fiil-cc-pro2.md)。
-
-## 用 skill 分析其他型号和版本
-
-仓库提供 [earbuds-firmware-reverse](skills/earbuds-firmware-reverse/SKILL.md)，供 Agent 分析不同耳机的 App 通信和固件处理逻辑，再验证目标功能及版本兼容性。
-
-使用 Codex 时，将整个 `skills/earbuds-firmware-reverse` 文件夹复制到用户目录下的 `.codex/skills/`，再在新会话中使用。提供设备型号、固件版本、APK 或固件路径，并说明目标。
-
-```text
-使用 $earbuds-firmware-reverse 分析这副耳机的离线激活逻辑。
-型号为 FIIL CC Pro2，固件为 1.0.5.0，相关文件在当前工作区。
-先确认该版本的指令处理和校验逻辑，再判断是否兼容已有方法。
+```powershell
+pnputil.exe /enum-devices /connected /class Bluetooth |
+  Select-String 'FIIL CC Pro2\s*$' -Context 1,0
 ```
 
-skill 的分析流程可复用到其他型号和版本。当前激活脚本的实测范围仍为上文的国行 F039 固件 `1.0.1.0`。
+找到耳机名称上方的设备信息。如果里面有 `BTHENUM\Dev_AABBCCDDEEFF\…`，那么蓝牙地址就是 `AABBCCDDEEFF`。这是示例地址，后面的命令都要换成你自己查到的地址。
+
+**3. 先查一下当前状态。**
+
+```powershell
+python .\ccpro2_gaia.py status AABBCCDDEEFF
+```
+
+两行 `activation` 分别对应两耳，`0` 表示未激活，`1` 表示已激活。如果出现 `2`，说明暂时没拿到对侧耳机的状态，确认两耳都在盒外，等一会儿再查。
+
+**4. 激活并打开 LDAC。**
+
+```powershell
+python .\ccpro2_gaia.py enable AABBCCDDEEFF --timeout 15
+```
+
+看到下面这句话，说明两耳都已激活，LDAC 开关也已打开。
+
+```text
+Both earbuds report LDAC activation and the switch is on.
+```
+
+耳机切换时可能会重启、断开一下，脚本会尝试重连。如果最后报超时，等耳机连回电脑，再执行一次 `status`。两耳都是 `1`，并且显示 `LDAC switch: 1`，就是成功了。
+
+## 连回手机确认
+
+断开电脑蓝牙，让耳机连回手机，播放一首歌。FIIL+ 页面应显示 LDAC 开关已打开，状态为「高清」。
+
+在小米 14 上，还可以进入「设置 → 更多设置 → 开发者选项 → 蓝牙音频编解码器」，确认播放时选中的是 LDAC。如果蓝牙设备详情里有「高清音频」或「LDAC」开关，也要打开。
+
+开启 LDAC 后，耳机会变为单点连接，游戏低延时模式也会关闭。
+
+## 遇到问题
+
+- **提示 `RFCOMM connect failed`**，先确认耳机确实连在这台电脑上，手机蓝牙已关闭，命令里的地址也已替换。
+- **只有一耳激活成功**，确认两耳都已连好，再运行 `enable`。脚本会跳过已经激活的一耳。
+- **已经激活，但开关还是 `0`**，重新运行 `enable`，它会继续尝试打开 LDAC。
+- **想关掉 LDAC**，执行下面的命令，激活状态会保留。
+
+```powershell
+python .\ccpro2_gaia.py off AABBCCDDEEFF
+```
+
+排查时可以在命令后加 `--verbose` 查看详细收发记录，或用 `--help` 查看全部命令。
+
+## 方法是怎么找到的
+
+先反编译 FIIL+，找到它发给耳机的蓝牙指令，再从耳机读取固件并反汇编。在主控程序里找到一个能让耳机自行生成、保存激活数据的分支，随后通过蓝牙逐耳调用，并查询状态确认成功。
+
+具体的指令和固件分析过程放在 [技术说明](skills/earbuds-firmware-reverse/references/fiil-cc-pro2.md)。
+
+## 让 Agent 分析其他耳机
+
+仓库附带 [earbuds-firmware-reverse skill](skills/earbuds-firmware-reverse/SKILL.md)。把整个 `skills/earbuds-firmware-reverse` 文件夹复制到用户目录的 `.codex/skills/`，在 Codex 新会话里调用，并提供耳机型号、固件版本和 APK 或固件文件。
+
+```text
+使用 $earbuds-firmware-reverse 分析这副耳机的离线激活方法。
+型号是 FIIL CC Pro2，固件是 1.0.5.0，相关文件在当前工作区。
+先分析这个版本是否保留了本地激活逻辑，再判断能否使用已有方法。
+```
+
+这个 skill 提供分析流程。其他型号和固件的激活方法，要根据各自的固件重新确认。
