@@ -1,0 +1,4 @@
+interface:
+  display_name: "耳机固件逆向"
+  short_description: "从配套 App 追踪到耳机固件，分析不同型号与版本的功能实现并验证兼容性"
+  default_prompt: "使用 $earbuds-firmware-reverse 分析这副耳机的功能实现，核对型号和固件，并给出有证据的实机验证方法。"
